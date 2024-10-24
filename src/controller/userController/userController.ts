@@ -3,6 +3,7 @@ import User, { IUser } from "../../model/userModel";
 import { createActivationToken,generateAccessToken,generateRefreshToken,verifyActivationToken } from "../../utils/tokenUtils";
 import bcrypt from 'bcryptjs'
 import { AuthenticatedRequest } from "../../middleware/authMiddleware";
+import { sendEmail } from "../../utils/emailService";
 
 
 export const registerUser = async(req:Request,res:Response) =>{

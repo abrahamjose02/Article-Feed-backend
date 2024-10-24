@@ -10,7 +10,8 @@ export const getArticles = async(req:AuthenticatedRequest,res:Response) =>{
     try {
         const user = await User.findById(userId);
         if (!user) {
-            return res.status(404).json({ message: "User not found" });
+            res.status(404).json({ message: "User not found" });
+            return 
         }
         const articles = await Article.find({category:{$in:user.preferences}})
             .populate('author','firstName lastName')
@@ -48,7 +49,8 @@ export const likeArticle = async(req:AuthenticatedRequest,res:Response) =>{
         }
 
        if(article.likes.some(like=>like.userId.equals(userObjectId))){
-        return res.status(400).json({ message: "You have already liked this article." });
+         res.status(400).json({ message: "You have already liked this article." });
+         return;
        }
 
        article.likes.push({userId:userObjectId});
@@ -69,7 +71,8 @@ export const dislikeArticle = async(req:AuthenticatedRequest,res:Response) =>{
     const userId = req.user?.id
 
     if(!userId){
-        return res.status(401).json({ message: 'User not authenticated' });
+         res.status(401).json({ message: 'User not authenticated' });
+         return;
     }
 
     try {
@@ -86,7 +89,8 @@ export const dislikeArticle = async(req:AuthenticatedRequest,res:Response) =>{
         }
 
        if(article.dislikes.some(dislike=>dislike.userId.equals(userObjectId))){
-        return res.status(400).json({ message: "You have already disliked this article." });
+         res.status(400).json({ message: "You have already disliked this article." });
+         return;
        }
 
        article.dislikes.push({userId:userObjectId});
@@ -106,18 +110,21 @@ export const blockArticle = async(req:AuthenticatedRequest,res:Response)=>{
     const {articleId} = req.body
     const userId = req.user?.id
     if (!userId) {
-        return res.status(401).json({ message: 'User not authenticated' });
+         res.status(401).json({ message: 'User not authenticated' });
+         return;
     }
     try {
         const article = await Article.findById(articleId)
         if (!article) {
-            return res.status(404).json({ message: 'Article not found' });
+             res.status(404).json({ message: 'Article not found' });
+             return;
         }
 
         const userObjectId = new mongoose.Types.ObjectId(userId)
 
         if(article.blockedBy.includes(userObjectId)){
-            return res.status(400).json({ message: "You have already blocked this article." });
+             res.status(400).json({ message: "You have already blocked this article." });
+             return;
         }
         article.blockedBy.push(userObjectId)
         article.blocks += 1;
@@ -143,13 +150,15 @@ export const createArticle = async(req:AuthenticatedRequest,res:Response) =>{
 
     try {
         if (!req.file) {
-            return res.status(400).json({ message: "Image is required" });
+             res.status(400).json({ message: "Image is required" });
+             return;
         }
 
         const imageUrl = await uploadImageToS3(req as any);
 
         if (!imageUrl) {
-            return res.status(500).json({ message: "Image upload failed" });
+             res.status(500).json({ message: "Image upload failed" });
+             return;
         }
 
          const newArticle = new Article({
@@ -194,7 +203,8 @@ export const updateArticle = async(req:AuthenticatedRequest,res:Response) =>{
     const userId = req.user?.id
 
     if (!userId) {
-        return res.status(401).json({ message: "User not authenticated" });
+         res.status(401).json({ message: "User not authenticated" });
+         return;
     }
 
     try {
@@ -209,7 +219,8 @@ export const updateArticle = async(req:AuthenticatedRequest,res:Response) =>{
             if (imageUrl) {
                 article.images = [imageUrl];
             } else {
-                return res.status(500).json({ message: "Image upload failed" });
+                 res.status(500).json({ message: "Image upload failed" });
+                 return;
             }
         }
 
@@ -234,13 +245,15 @@ export const deleteArticle = async(req:AuthenticatedRequest,res:Response) =>{
     const userId = req.user?.id
 
     if (!userId) {
-        return res.status(401).json({ message: "User not authenticated" });
+         res.status(401).json({ message: "User not authenticated" });
+         return
     }
 
     try {
         const article = await Article.findOneAndDelete({ _id: articleId, author: userId });
         if (!article) {
-            return res.status(404).json({ message: "Article not found or unauthorized to delete" });
+             res.status(404).json({ message: "Article not found or unauthorized to delete" });
+             return;
         }
 
         res.status(200).json({ success: true, message: "Article deleted successfully" });
