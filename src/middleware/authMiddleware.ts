@@ -6,7 +6,12 @@ dotenv.config()
 
 
 export interface AuthenticatedRequest extends Request{
-    user?:{id:string}
+    user?:{id:string};
+    file?: {
+        buffer: Buffer;
+        originalname: string;
+        mimetype: string;
+    };
 }
 
 export const isAuthenticated = (req:AuthenticatedRequest,res:Response,next:NextFunction)=>{

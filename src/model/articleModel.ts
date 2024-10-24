@@ -1,12 +1,26 @@
 import mongoose,{Document,Schema} from "mongoose";
 
 
+export enum ArticleCategory {
+    TECHNOLOGY = "Technology",
+    HEALTH = "Health",
+    EDUCATION = "Education",
+    LIFESTYLE = "Lifestyle",
+    FINANCE = "Finance",
+    TRAVEL = "Travel",
+    FOOD = "Food",
+    SPORTS = "Sports",
+    ENTERTAINMENT = "Entertainment",
+    SCIENCE = "Science"
+}
+
+
 export interface IArticle extends Document{
     title:string;
     description:string;
     images:string[];
     tags:string[];
-    category:string;
+    category:ArticleCategory;
     author:mongoose.Types.ObjectId;
     likes:{userId:mongoose.Types.ObjectId}[];
     dislikes:{userId:mongoose.Types.ObjectId}[];
@@ -33,6 +47,7 @@ const articleSchema = new Schema <IArticle>({
     },
     category:{
         type:String,
+        enum:Object.values(ArticleCategory),
         required:true
     },
     author:{
