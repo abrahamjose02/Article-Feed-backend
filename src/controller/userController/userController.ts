@@ -1,6 +1,6 @@
 import { Request,Response } from "express";
 import User, { IUser } from "../../model/userModel";
-import { createActivationToken,generateAccessToken,generateRefreshToken,verifyActivationToken } from "../../utils/tokenutils";
+import { createActivationToken,generateAccessToken,generateRefreshToken,verifyActivationToken } from "../../utils/tokenUtils";
 import bcrypt from 'bcryptjs'
 import { AuthenticatedRequest } from "../../middleware/authMiddleware";
 
