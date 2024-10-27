@@ -5,32 +5,43 @@ import { AuthenticatedRequest } from "../../middleware/authMiddleware";
 import mongoose from "mongoose";
 import { uploadImageToS3 } from "../../utils/s3Uploader";
 
-export const getArticles = async(req:AuthenticatedRequest,res:Response) =>{
-    const userId = req.user?.id
+export const getArticles = async (req: AuthenticatedRequest, res: Response) => {
+    const userId = req.user?.id;
+
     try {
         const user = await User.findById(userId);
         if (!user) {
-            res.status(404).json({ message: "User not found" });
-            return 
+             res.status(404).json({ message: "User not found" });
+             return
         }
-        const articles = await Article.find().populate('author', 'firstName lastName');
-        const articlesWithLikes = articles.map((article) => {
-            const userObjectId = new mongoose.Types.ObjectId(userId);
+
+        const userPreferences = user.preferences;
+
+        const articles = await Article.find({
+            $and: [
+                { tags: { $in: userPreferences } },  
+                { blockedBy: { $ne: userId } }       
+            ]
+        })
+            .populate('author', 'firstName lastName'); 
+
+        const userObjectId = new mongoose.Types.ObjectId(userId);
+        const articlesWithLikes = articles.map(article => {
             const hasLiked = article.likes.some((like) => like.userId.equals(userObjectId));
+            const hasDisliked = article.dislikes.some((dislike) => dislike.userId.equals(userObjectId));
             return {
                 ...article.toObject(),
                 hasLiked,
+                hasDisliked,
             };
         });
 
         res.status(200).json({ success: true, articles: articlesWithLikes });
-    } catch (e:any) {
-        console.log(e);
+    } catch (error: any) {
+        console.error(error);
         res.status(500).json({ success: false, message: 'Server error' });
-        return;
     }
-}
-
+};
 export const likeArticle = async(req:AuthenticatedRequest,res:Response) =>{
     const{articleId} = req.body;
     const userId = req.user?.id
