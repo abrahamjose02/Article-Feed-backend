@@ -25,6 +25,8 @@ export const uploadImageToS3 = async (req: CustomRequest) => {
         ContentType: req.file.mimetype,
     };
 
+    console.log("Uploading to S3 with params:", params);
+
     const command = new PutObjectCommand(params);
     try {
         await s3.send(command);

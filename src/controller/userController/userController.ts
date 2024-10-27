@@ -42,6 +42,8 @@ export const activateUser = async(req:Request,res:Response) =>{
             res.status(400).json({success:false,message:"Invalid Activation Code"})
             return;
         }
+
+        console.log("Verified User Data:", verified.user);
         const existingUser = await User.findOne({ email: verified.user.email });
     if (existingUser) {
       res.status(400).json({ success: false, message: "User already exists" });
@@ -97,6 +99,8 @@ export const login = async (req: Request, res: Response) => {
         const accessToken = generateAccessToken(userId);
         const refreshToken = generateRefreshToken(userId);
 
+        console.log("AccessToken : ",accessToken)
+        console.log("RefreshToken: ",refreshToken)
         
         res.cookie('accessToken', accessToken, { 
             httpOnly: true, 
@@ -144,7 +148,7 @@ export const updateUser = async(req:AuthenticatedRequest,res:Response)=>{
 
         await user.save();
 
-         res.status(200).json({ message: 'User updated successfully', user });
+         res.status(200).json({ success:true,message: 'User updated successfully', user });
          return;
     } catch (e:any) {
         console.log(e);

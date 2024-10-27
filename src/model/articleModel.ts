@@ -18,6 +18,7 @@ export enum ArticleCategory {
 export interface IArticle extends Document{
     title:string;
     description:string;
+    content: string;
     images:string[];
     tags:string[];
     category:ArticleCategory;
@@ -36,6 +37,10 @@ const articleSchema = new Schema <IArticle>({
     description:{
         type:String,
         required:true
+    },
+    content: { 
+        type: String,
+        required: true 
     },
     images:{
         type:[String],

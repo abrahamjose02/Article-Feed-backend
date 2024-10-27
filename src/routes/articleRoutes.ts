@@ -1,5 +1,5 @@
 import express,{Router} from 'express'
-import { getArticles,createArticle,getUserArticles,updateArticle,deleteArticle,likeArticle,dislikeArticle,blockArticle } from '../controller/articleController/articleController';
+import { getArticles,createArticle,getUserArticles,updateArticle,deleteArticle,likeArticle,dislikeArticle,blockArticle, getArticleById } from '../controller/articleController/articleController';
 import { isAuthenticated } from '../middleware/authMiddleware';
 import upload from '../utils/multer';
 
@@ -7,11 +7,13 @@ const articleRouter:Router = express.Router()
 
 articleRouter.get('/',isAuthenticated,getArticles)
 
-articleRouter.post('/create', isAuthenticated, upload.single('file'), createArticle);
+articleRouter.post('/create', isAuthenticated, upload.single('image'), createArticle);
 
 articleRouter.get('/user', isAuthenticated, getUserArticles);
 
-articleRouter.put('/:articleId', isAuthenticated, updateArticle);
+articleRouter.get('/:articleId', isAuthenticated, getArticleById);
+
+articleRouter.put('/:articleId', isAuthenticated,upload.single('image'), updateArticle);
 
 articleRouter.delete('/:articleId', isAuthenticated, deleteArticle);
 

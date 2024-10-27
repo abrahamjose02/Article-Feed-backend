@@ -1,5 +1,5 @@
 import { Request,Response } from "express";
-import Article,{IArticle} from "../../model/articleModel";
+import Article from "../../model/articleModel";
 import User from "../../model/userModel";
 import { AuthenticatedRequest } from "../../middleware/authMiddleware";
 import mongoose from "mongoose";
@@ -13,12 +13,17 @@ export const getArticles = async(req:AuthenticatedRequest,res:Response) =>{
             res.status(404).json({ message: "User not found" });
             return 
         }
-        const articles = await Article.find({category:{$in:user.preferences}})
-            .populate('author','firstName lastName')
-            .exec();
+        const articles = await Article.find().populate('author', 'firstName lastName');
+        const articlesWithLikes = articles.map((article) => {
+            const userObjectId = new mongoose.Types.ObjectId(userId);
+            const hasLiked = article.likes.some((like) => like.userId.equals(userObjectId));
+            return {
+                ...article.toObject(),
+                hasLiked,
+            };
+        });
 
-            res.status(200).json({success:true,articles})
-            return;
+        res.status(200).json({ success: true, articles: articlesWithLikes });
     } catch (e:any) {
         console.log(e);
         res.status(500).json({ success: false, message: 'Server error' });
@@ -42,22 +47,31 @@ export const likeArticle = async(req:AuthenticatedRequest,res:Response) =>{
             return;
         }
 
+        
+
         const userObjectId = new mongoose.Types.ObjectId(userId);
         if(article.blockedBy.includes(userObjectId)){
             res.status(400).json({message:"You cannot like a blocked article."})
             return;
         }
 
-       if(article.likes.some(like=>like.userId.equals(userObjectId))){
-         res.status(400).json({ message: "You have already liked this article." });
-         return;
-       }
+        const hasDisliked = article.dislikes.some(dislike => dislike.userId.equals(userObjectId));
+        if (hasDisliked) {
+            res.status(400).json({ message: "You must undo disliking the article before liking it." });
+            return;
+        }
 
-       article.likes.push({userId:userObjectId});
+        const hasLiked = article.likes.some(like => like.userId.equals(userObjectId));
+
+        if(hasLiked){
+            article.likes = article.likes.filter(like=>!like.userId.equals(userObjectId))
+        }else{
+            article.likes.push({userId:userObjectId});
+        }
 
        await article.save();
 
-        res.status(200).json({ success: true, likes: article.likes.length });
+        res.status(200).json({ success: true, likes: article.likes.length,hasLiked:!hasLiked,articleLikes:article.likes });
         return;
     } catch (e:any) {
         console.log(e);
@@ -88,16 +102,24 @@ export const dislikeArticle = async(req:AuthenticatedRequest,res:Response) =>{
             return;
         }
 
-       if(article.dislikes.some(dislike=>dislike.userId.equals(userObjectId))){
-         res.status(400).json({ message: "You have already disliked this article." });
-         return;
-       }
+        const hasLiked = article.likes.some(like => like.userId.equals(userObjectId));
+        if (hasLiked) {
+            res.status(400).json({ message: "You must unlike the article before disliking it." });
+            return;
+        }
 
-       article.dislikes.push({userId:userObjectId});
+       
+        const hasDisliked = article.dislikes.some(dislike => dislike.userId.equals(userObjectId));
+
+        if (hasDisliked) {
+            article.dislikes = article.dislikes.filter(dislike => !dislike.userId.equals(userObjectId));
+        } else {
+            article.dislikes.push({ userId: userObjectId });
+        }
 
        await article.save();
 
-        res.status(200).json({ success: true, dislikes: article.dislikes.length });
+        res.status(200).json({ success: true, dislikes: article.dislikes.length,hasDisliked:!hasDisliked,articleDislikes: article.dislikes });
         return;
     } catch (e:any) {
         console.log(e);
@@ -139,31 +161,32 @@ export const blockArticle = async(req:AuthenticatedRequest,res:Response)=>{
     }
 }
 
-export const createArticle = async(req:AuthenticatedRequest,res:Response) =>{
-    const{title,description,tags,category} = req.body
-    const userId = req.user?.id
+export const createArticle = async (req: AuthenticatedRequest, res: Response) => {
+    const { title, description, content, tags, category } = req.body;
+    const userId = req.user?.id;
 
-    if(!userId){
-        res.status(401).json({message:"User not authenticated"})
+    if (!userId) {
+        res.status(401).json({ message: "User not authenticated" });
         return;
     }
 
     try {
         if (!req.file) {
-             res.status(400).json({ message: "Image is required" });
-             return;
+            res.status(400).json({ message: "Image is required" });
+            return;
         }
 
         const imageUrl = await uploadImageToS3(req as any);
 
         if (!imageUrl) {
-             res.status(500).json({ message: "Image upload failed" });
-             return;
+            res.status(500).json({ message: "Image upload failed" });
+            return;
         }
 
-         const newArticle = new Article({
+        const newArticle = new Article({
             title,
             description,
+            content, 
             images: [imageUrl],
             tags,
             category,
@@ -172,93 +195,116 @@ export const createArticle = async(req:AuthenticatedRequest,res:Response) =>{
 
         await newArticle.save();
         res.status(201).json({ success: true, article: newArticle });
-    } catch (e:any) {
+    } catch (e: any) {
         console.log(e);
         res.status(500).json({ success: false, message: 'Server error' });
         return;
     }
 }
 
-export const getUserArticles = async(req:AuthenticatedRequest,res:Response) =>{
-    const userId = req.user?.id
+export const getUserArticles = async (req: AuthenticatedRequest, res: Response) => {
+    const userId = req.user?.id;
 
-    if(!userId){
+    if (!userId) {
         res.status(401).json({ message: "User not authenticated" });
         return;
     }
     try {
-        const articles = await Article.find({author:userId}).exec()
+        const articles = await Article.find({ author: userId }).exec();
         res.status(200).json({ success: true, articles });
-    } catch (e:any) {
+    } catch (e: any) {
         console.log(e);
         res.status(500).json({ success: false, message: 'Server error' });
         return;
     }
 }
 
+export const getArticleById = async (req: AuthenticatedRequest, res: Response) => {
+    const { articleId } = req.params;
 
-export const updateArticle = async(req:AuthenticatedRequest,res:Response) =>{
-    const{articleId} = req.params
-    const{title,description,tags,category} = req.body;
-    const userId = req.user?.id
+    try {
+        const article = await Article.findById(articleId)
+            .populate('author', 'firstName lastName')
+            .exec();
+
+        if (!article) {
+             res.status(404).json({ success: false, message: 'Article not found' });
+             return;
+        }
+
+         res.status(200).json({ success: true, article });
+         return;
+    } catch (error) {
+        console.log(error);
+         res.status(500).json({ success: false, message: 'Internal server error' });
+         return;
+    }
+};
+
+
+export const updateArticle = async (req: AuthenticatedRequest, res: Response) => {
+    const { articleId } = req.params;
+    const { title, description, content, tags, category, removeImage } = req.body;
+    const userId = req.user?.id;
 
     if (!userId) {
-         res.status(401).json({ message: "User not authenticated" });
+         res.status(401).json({ message: 'User not authenticated' });
          return;
     }
 
     try {
-        const article = await Article.findOne({_id:articleId,author:userId})
-        if(!article){
-            res.status(404).json({ message: "Article not found or unauthorized" });
-            return;
+        const article = await Article.findOne({ _id: articleId, author: userId });
+        if (!article) {
+             res.status(404).json({ message: 'Article not found or unauthorized' });
+             return;
         }
 
-        if (req.file) {
-            const imageUrl = await uploadImageToS3(req as any);  
+        
+        if (removeImage === 'true') {
+            article.images = []; 
+        } else if (req.file) {
+            const imageUrl = await uploadImageToS3(req as any);
             if (imageUrl) {
-                article.images = [imageUrl];
-            } else {
-                 res.status(500).json({ message: "Image upload failed" });
-                 return;
+                article.images = [imageUrl]; 
             }
-        }
-
+        } 
+        
         article.title = title || article.title;
         article.description = description || article.description;
-        article.tags = tags || article.tags;
+        article.content = content || article.content;
+        article.tags = tags ? tags.split(',').map((tag: string) => tag.trim()) : article.tags; // Assuming tags are sent as a comma-separated string
         article.category = category || article.category;
-
 
         await article.save();
         res.status(200).json({ success: true, article });
-
-    } catch (e:any) {
-        console.log(e);
+        return;
+    } catch (e: any) {
+        console.error(e);
         res.status(500).json({ success: false, message: 'Server error' });
         return;
     }
-}
+};
 
-export const deleteArticle = async(req:AuthenticatedRequest,res:Response) =>{
-    const{articleId} = req.params
-    const userId = req.user?.id
+
+export const deleteArticle = async (req: AuthenticatedRequest, res: Response) => {
+    const { articleId } = req.params;
+    const userId = req.user?.id;
 
     if (!userId) {
-         res.status(401).json({ message: "User not authenticated" });
-         return
+        res.status(401).json({ message: "User not authenticated" });
+        return;
     }
 
     try {
         const article = await Article.findOneAndDelete({ _id: articleId, author: userId });
         if (!article) {
-             res.status(404).json({ message: "Article not found or unauthorized to delete" });
-             return;
+            res.status(404).json({ message: "Article not found or unauthorized to delete" });
+            return;
         }
 
         res.status(200).json({ success: true, message: "Article deleted successfully" });
         return;
-    } catch (e:any) {
+    } catch (e: any) {
         console.log(e);
         res.status(500).json({ success: false, message: 'Server error' });
         return;

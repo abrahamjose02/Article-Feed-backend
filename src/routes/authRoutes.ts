@@ -11,7 +11,7 @@ router.post('/activate',activateUser)
 
 router.post('/login',login);
 
-router.post('/profile',isAuthenticated,updateUser);
+router.post('/update',isAuthenticated,updateUser);
 
 router.get('/profile',isAuthenticated,getUserProfile);
 
