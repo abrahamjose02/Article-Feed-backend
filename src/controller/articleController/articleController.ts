@@ -14,7 +14,6 @@ export const getArticles = async (req: AuthenticatedRequest, res: Response) => {
              res.status(404).json({ message: "User not found" });
              return
         }
-
         const userPreferences = user.preferences;
 
         const articles = await Article.find({
@@ -25,6 +24,7 @@ export const getArticles = async (req: AuthenticatedRequest, res: Response) => {
         })
             .populate('author', 'firstName lastName'); 
 
+        
         const userObjectId = new mongoose.Types.ObjectId(userId);
         const articlesWithLikes = articles.map(article => {
             const hasLiked = article.likes.some((like) => like.userId.equals(userObjectId));
