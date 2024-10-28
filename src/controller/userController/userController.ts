@@ -4,6 +4,7 @@ import { createActivationToken,generateAccessToken,generateRefreshToken,verifyAc
 import bcrypt from 'bcryptjs'
 import { AuthenticatedRequest } from "../../middleware/authMiddleware";
 import { sendEmail } from "../../utils/emailService";
+import jwt from 'jsonwebtoken'
 
 
 export const registerUser = async(req:Request,res:Response) =>{
@@ -105,7 +106,7 @@ export const login = async (req: Request, res: Response) => {
         res.cookie('accessToken', accessToken, { 
             httpOnly: true, 
             secure: true, 
-            maxAge: 15 * 60 * 1000, 
+            maxAge: 1 * 60 * 1000, 
             sameSite: 'none' 
         });
         res.cookie('refreshToken', refreshToken, { 
@@ -181,3 +182,40 @@ export const getUserProfile = async(req:AuthenticatedRequest,res:Response) =>{
         return;
     }
 }
+
+export const refreshToken = async (req:Request, res:Response) => {
+    const { refreshToken } = req.cookies;
+
+    console.log("RefreshToken",refreshToken)
+
+    console.log("Refresh Token called")
+  
+    if (!refreshToken) {
+      res.status(401).json({ message: 'No refresh token' });
+      return;
+    }
+  
+    try {
+      const decoded: any = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET!);
+
+      console.log(decoded)
+
+      console.log("Decode id",decoded.id)
+
+      if (!decoded.id) {
+         res.status(401).json({ message: 'Invalid refresh token' });
+         return
+      }
+
+      
+      const accessToken = generateAccessToken(decoded.id);
+  
+      res.cookie('accessToken', accessToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production', maxAge: 15 * 60 * 1000 });
+  
+       res.status(200).json({ message: 'Access token refreshed successfully' });
+       return;
+    } catch (error) {
+      console.error(error);
+      res.status(403).json({ message: 'Invalid refresh token' });
+    }
+  };

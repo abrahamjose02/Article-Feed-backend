@@ -1,5 +1,5 @@
 import express,{ Router } from "express";
-import { registerUser,login,activateUser,updateUser, logout, getUserProfile } from "../controller/userController/userController";
+import { registerUser,login,activateUser,updateUser, logout, getUserProfile, refreshToken } from "../controller/userController/userController";
 import { isAuthenticated } from "../middleware/authMiddleware";
 
 
@@ -15,6 +15,8 @@ router.post('/update',isAuthenticated,updateUser);
 
 router.get('/profile',isAuthenticated,getUserProfile);
 
+router.post('/refresh-token',refreshToken)
+
 router.post('/logout',logout)
 
-export default router
+export default router   
